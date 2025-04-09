@@ -7,7 +7,7 @@ router.get('/', usuarioController.getUsuarios);
 
 // Ruta POST /registro para registrar nuevos usuarios
 router.post('/registro', usuarioController.registerUsuario);
-
+git add .
 // Ruta POST /login para autenticar usuarios
 router.post('/login', usuarioController.loginUsuario);
 
