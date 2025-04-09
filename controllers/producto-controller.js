@@ -1,5 +1,3 @@
-// --- START OF FILE producto-controller.js ---
-
 const productoModel = require('../models/producto-model');
 const { getProductosHATEOAS } = require('../utils/hateoas-util');
 
@@ -56,7 +54,7 @@ const getProductosFiltrados = async (req, res) => {
 const createProducto = async (req, res) => {
   try {
       console.log("🟨 Datos recibidos en el backend:", req.body);
-      const { titulo, descripcion, precio, categoria_id, vendedor_id } = req.body;
+      const { titulo, descripcion, precio, categoria_id, vendedor_id, imagen } = req.body;
 
       // Validación de datos obligatorios
       if (!titulo || !descripcion || !precio || !categoria_id || !vendedor_id) {
@@ -64,7 +62,7 @@ const createProducto = async (req, res) => {
       }
 
       // Crear el producto en la base de datos
-      const productoData = { titulo, descripcion, precio, categoria_id, vendedor_id };
+      const productoData = { titulo, descripcion, precio, categoria_id, vendedor_id, imagen };
       const nuevoProducto = await productoModel.createProducto(productoData);
 
       // Devolver el producto creado con código 201 (Creado)
