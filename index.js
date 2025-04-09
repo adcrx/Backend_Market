@@ -16,7 +16,7 @@ const pedidosRoutes = require('./routes/pedido-routes');
 
 // Configuración inicial de Express
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // JWT
 const secretKey = process.env.SECRET_KEY;
