@@ -159,10 +159,25 @@ const createPedido = async (req, res) => {
     }
   };
   
+  const getPedidosPorUsuario = async (req, res) => {
+    const userId = req.params.id;
+    try {
+      const result = await pool.query(
+        'SELECT * FROM pedidos WHERE usuario_id = $1 ORDER BY created_at DESC',
+        [userId]
+      );
+      res.json(result.rows);
+    } catch (err) {
+      console.error("Error al obtener pedidos del usuario:", err);
+      res.status(500).json({ error: 'Error al obtener pedidos del usuario' });
+    }
+  };
+  
 
 module.exports = {
   createPedido,
   getPedidos,
   actualizarEstadoPedido,
-  updateEstadoPedido
+  updateEstadoPedido,
+  getPedidosPorUsuario,
 };
