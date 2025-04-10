@@ -1,4 +1,3 @@
-// Función para generar estructura HATEOAS para productos
 const getProductosHATEOAS = (productos) => {
     return {
         total: productos.length,

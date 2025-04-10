@@ -6,7 +6,6 @@ function sanitizarProducto(producto) {
       precio: producto.precio,
       imagen: producto.imagen,
       rating: producto.rating,
-      stock: producto.stock
     };
   }
   
