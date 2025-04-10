@@ -8,10 +8,8 @@ const getProductos = async (limit, page, order_by, vendedor_id) => {
 
     let queryParams = [];
     let query = `
-        SELECT p.*, 
-               COALESCE(AVG(c.rating), 0) AS rating
+        SELECT p.*
         FROM productos p
-        LEFT JOIN calificaciones c ON p.id = c.producto_id
     `;
 
     if (vendedor_id !== undefined && vendedor_id !== null) {
@@ -21,8 +19,8 @@ const getProductos = async (limit, page, order_by, vendedor_id) => {
         query += ' WHERE 1=1';
     }
 
-    query += ' GROUP BY p.id';
-    query += format(' ORDER BY %s LIMIT %L OFFSET %L', order, limit, offset);
+    query += ' ORDER BY p.id';
+    query += format(' LIMIT %L OFFSET %L', limit, offset);
 
     const finalQuery = format(query, ...queryParams);
     console.log("Executing SQL:", finalQuery);
@@ -34,10 +32,8 @@ const getProductos = async (limit, page, order_by, vendedor_id) => {
 const getProductosFiltrados = async (filters) => {
     const { precio_max, precio_min, categoria, vendedor_id } = filters;
     let query = `
-        SELECT p.*, 
-               COALESCE(AVG(c.rating), 0) AS rating
+        SELECT p.*
         FROM productos p
-        LEFT JOIN calificaciones c ON p.id = c.producto_id
         WHERE 1=1
     `;
     const queryParams = [];
@@ -58,8 +54,6 @@ const getProductosFiltrados = async (filters) => {
         query += ' AND p.vendedor_id = %L';
         queryParams.push(vendedor_id);
     }
-
-    query += ' GROUP BY p.id';
 
     const finalQuery = format(query, ...queryParams);
     console.log("Executing SQL (filtros):", finalQuery);
@@ -83,12 +77,9 @@ const createProducto = async (productoData) => {
 
 const getProductoPorId = async (id) => {
     const query = `
-        SELECT p.*, 
-               COALESCE(AVG(c.rating), 0) AS rating
+        SELECT p.*
         FROM productos p
-        LEFT JOIN calificaciones c ON p.id = c.producto_id
         WHERE p.id = $1
-        GROUP BY p.id
     `;
     const result = await pool.query(query, [id]);
     return result.rows[0];
@@ -152,36 +143,6 @@ const deleteProducto = async (id) => {
     return result.rowCount > 0;
 };
 
-const guardarCalificacion = async (productoId, usuarioId, rating) => {
-    const query = `
-      INSERT INTO calificaciones (producto_id, usuario_id, rating)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (producto_id, usuario_id)
-      DO UPDATE SET rating = EXCLUDED.rating
-      RETURNING *;
-    `;
-    const result = await pool.query(query, [productoId, usuarioId, rating]);
-    return result.rows[0];
-};
-
-const calificarProducto = async (req, res) => {
-    try {
-        const productoId = parseInt(req.params.id);
-        const usuarioId = req.usuario.id;
-        const { rating } = req.body;
-
-        if (!productoId || !rating || rating < 1 || rating > 5) {
-            return res.status(400).json({ error: "Datos inválidos: rating debe ser entre 1 y 5" });
-        }
-
-        const resultado = await guardarCalificacion(productoId, usuarioId, rating);
-        res.status(201).json(resultado);
-    } catch (err) {
-        console.error("Error al guardar calificación:", err);
-        res.status(500).json({ error: "Error en el servidor" });
-    }
-};
-
 module.exports = {
     getProductos,
     getProductosFiltrados,
@@ -189,6 +150,4 @@ module.exports = {
     getProductoPorId,
     updateProducto,
     deleteProducto,
-    guardarCalificacion,
-    calificarProducto
 };

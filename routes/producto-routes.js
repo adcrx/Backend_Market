@@ -21,7 +21,5 @@ router.put('/:id', productoController.updateProducto);
 // Ruta DELETE /productos/:id para eliminar un producto por ID
 router.delete('/:id', productoController.deleteProducto);
 
-//Registrar calificación
-router.post('/:id/rating', authMiddleware, productoController.calificarProducto);
 
 module.exports = router;

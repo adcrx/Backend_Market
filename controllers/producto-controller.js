@@ -1,4 +1,5 @@
 const productoModel = require('../models/producto-model');
+const sanitizarProducto = require('../utils/sanitizar-producto');
 
 const getProductos = async (req, res) => {
   try {
@@ -8,7 +9,8 @@ const getProductos = async (req, res) => {
     const vendedor_id = req.query.vendedor_id ? parseInt(req.query.vendedor_id) : undefined;
 
     const productos = await productoModel.getProductos(limit, page, order_by, vendedor_id);
-    res.json(productos);
+    const productosSanitizados = productos.map(sanitizarProducto);
+    res.json(productosSanitizados);
   } catch (err) {
     console.error("Error al obtener productos:", err);
     res.status(500).json({ error: "Error al obtener productos" });
@@ -18,7 +20,8 @@ const getProductos = async (req, res) => {
 const getProductosFiltrados = async (req, res) => {
   try {
     const productos = await productoModel.getProductosFiltrados(req.query);
-    res.json(productos);
+    const productosSanitizados = productos.map(sanitizarProducto);
+    res.json(productosSanitizados);
   } catch (err) {
     console.error("Error al filtrar productos:", err);
     res.status(500).json({ error: "Error al filtrar productos" });
@@ -28,7 +31,7 @@ const getProductosFiltrados = async (req, res) => {
 const createProducto = async (req, res) => {
   try {
     const nuevoProducto = await productoModel.createProducto(req.body);
-    res.status(201).json(nuevoProducto);
+    res.status(201).json(sanitizarProducto(nuevoProducto));
   } catch (err) {
     console.error("Error al crear producto:", err);
     res.status(500).json({ error: "Error al crear producto" });
@@ -47,7 +50,7 @@ const getProductoPorId = async (req, res) => {
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
 
-    res.json(producto);
+    res.json(sanitizarProducto(producto));
   } catch (error) {
     console.error('Error obteniendo el producto:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -58,7 +61,7 @@ const updateProducto = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const productoActualizado = await productoModel.updateProducto(id, req.body);
-    res.json(productoActualizado);
+    res.json(sanitizarProducto(productoActualizado));
   } catch (err) {
     console.error("Error al actualizar producto:", err);
     res.status(500).json({ error: "Error al actualizar producto" });
@@ -80,24 +83,6 @@ const deleteProducto = async (req, res) => {
   }
 };
 
-const calificarProducto = async (req, res) => {
-  try {
-    const productoId = parseInt(req.params.id);
-    const usuarioId = req.usuario.id;
-    const { rating } = req.body;
-
-    if (!productoId || !rating || rating < 1 || rating > 5) {
-      return res.status(400).json({ error: "Datos inválidos: rating debe ser entre 1 y 5" });
-    }
-
-    const resultado = await productoModel.guardarCalificacion(productoId, usuarioId, rating);
-    res.status(201).json(resultado);
-  } catch (err) {
-    console.error("Error al guardar calificación:", err);
-    res.status(500).json({ error: "Error en el servidor" });
-  }
-};
-
 module.exports = {
   getProductos,
   getProductosFiltrados,
@@ -105,5 +90,4 @@ module.exports = {
   getProductoPorId,
   updateProducto,
   deleteProducto,
-  calificarProducto
 };
