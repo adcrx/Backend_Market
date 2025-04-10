@@ -1,5 +1,4 @@
 const productoModel = require('../models/producto-model');
-const sanitizarProducto = require('../utils/sanitizar-producto');
 
 const getProductos = async (req, res) => {
   try {
@@ -9,8 +8,7 @@ const getProductos = async (req, res) => {
     const vendedor_id = req.query.vendedor_id ? parseInt(req.query.vendedor_id) : undefined;
 
     const productos = await productoModel.getProductos(limit, page, order_by, vendedor_id);
-    const productosSanitizados = productos.map(sanitizarProducto);
-    res.json(productosSanitizados);
+    res.json(productos);
   } catch (err) {
     console.error("Error al obtener productos:", err);
     res.status(500).json({ error: "Error al obtener productos" });
@@ -20,8 +18,7 @@ const getProductos = async (req, res) => {
 const getProductosFiltrados = async (req, res) => {
   try {
     const productos = await productoModel.getProductosFiltrados(req.query);
-    const productosSanitizados = productos.map(sanitizarProducto);
-    res.json(productosSanitizados);
+    res.json(productos);
   } catch (err) {
     console.error("Error al filtrar productos:", err);
     res.status(500).json({ error: "Error al filtrar productos" });
@@ -31,7 +28,7 @@ const getProductosFiltrados = async (req, res) => {
 const createProducto = async (req, res) => {
   try {
     const nuevoProducto = await productoModel.createProducto(req.body);
-    res.status(201).json(sanitizarProducto(nuevoProducto));
+    res.status(201).json(nuevoProducto);
   } catch (err) {
     console.error("Error al crear producto:", err);
     res.status(500).json({ error: "Error al crear producto" });
@@ -50,7 +47,7 @@ const getProductoPorId = async (req, res) => {
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
 
-    res.json(sanitizarProducto(producto));
+    res.json(producto);
   } catch (error) {
     console.error('Error obteniendo el producto:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -61,7 +58,7 @@ const updateProducto = async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const productoActualizado = await productoModel.updateProducto(id, req.body);
-    res.json(sanitizarProducto(productoActualizado));
+    res.json(productoActualizado);
   } catch (err) {
     console.error("Error al actualizar producto:", err);
     res.status(500).json({ error: "Error al actualizar producto" });

@@ -1,11 +1,9 @@
 const usuarioModel = require('../models/usuario-model');
-const sanitizarUsuario = require('../utils/sanitizar-usuario');
 
 const getUsuarios = async (req, res) => {
   try {
     const usuarios = await usuarioModel.getUsuarios();
-    const usuariosSanitizados = usuarios.map(sanitizarUsuario);
-    res.json(usuariosSanitizados);
+    res.json(usuarios);
   } catch (error) {
     console.error('Error obteniendo los usuarios:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -29,7 +27,7 @@ const registerUsuario = async (req, res) => {
     }
 
     const nuevoUsuario = await usuarioModel.registerUsuario({ nombre, email, password, direccion, avatar });
-    res.status(201).json(sanitizarUsuario(nuevoUsuario));
+    res.status(201).json(nuevoUsuario);
   } catch (error) {
     console.error('Error registrando el usuario:', error);
 
@@ -79,7 +77,7 @@ const getUsuarioById = async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    res.json(sanitizarUsuario(usuario));
+    res.json(usuario);
   } catch (error) {
     console.error('Error obteniendo el usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });

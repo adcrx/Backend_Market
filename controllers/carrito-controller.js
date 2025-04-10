@@ -1,7 +1,6 @@
 const carritoModel = require('../models/carrito-model');
 const usuarioModel = require('../models/usuario-model');
 const pool = require('../config/db-config');
-const sanitizarCarritoItem = require('../utils/sanitizar-carrito');
 
 const addProductoToCarrito = async (req, res) => {
   try {
@@ -28,7 +27,7 @@ const addProductoToCarrito = async (req, res) => {
 
     const carritoItem = await carritoModel.addItemToCarrito(carrito.id, producto_id, cantidad);
 
-    res.status(201).json(sanitizarCarritoItem(carritoItem));
+    res.status(201).json(carritoItem); // Ahora se devuelve el carritoItem sin sanitización
   } catch (error) {
     console.error('Error agregando producto al carrito:', error);
     res.status(500).json({ error: 'Error en el servidor' });

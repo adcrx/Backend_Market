@@ -1,6 +1,5 @@
 const pool = require('../config/db-config');
 const pedidoModel = require('../models/pedido-model');
-const sanitizarPedido = require('../utils/sanitizar-pedido');
 
 const createPedido = async (req, res) => {
   try {
@@ -14,7 +13,7 @@ const createPedido = async (req, res) => {
       await pedidoModel.createPedidoItem(nuevoPedido.id, item.producto_id, item.cantidad, item.precio);
     }
 
-    res.status(201).json({ message: 'Pedido creado exitosamente', pedido: sanitizarPedido(nuevoPedido) });
+    res.status(201).json({ message: 'Pedido creado exitosamente', pedido: nuevoPedido });
   } catch (error) {
     console.error('Error creando el pedido:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -40,9 +39,7 @@ const getPedidos = async (req, res) => {
     }
 
     const result = await pool.query(query, queryParams);
-    const pedidosSanitizados = result.rows.map(sanitizarPedido);
-
-    res.status(200).json(pedidosSanitizados);
+    res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error obteniendo los pedidos:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -63,7 +60,7 @@ const updateEstadoPedido = async (req, res) => {
       return res.status(404).json({ error: 'Pedido no encontrado' });
     }
 
-    res.json(sanitizarPedido(result.rows[0]));
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error al actualizar el estado del pedido:', error);
     res.status(500).json({ error: 'Error del servidor' });
@@ -83,7 +80,7 @@ const actualizarEstadoPedido = async (req, res) => {
       return res.status(404).json({ error: 'Pedido no encontrado' });
     }
 
-    res.json({ message: 'Estado actualizado correctamente', pedido: sanitizarPedido(result.rows[0]) });
+    res.json({ message: 'Estado actualizado correctamente', pedido: result.rows[0] });
   } catch (error) {
     console.error('Error actualizando estado:', error);
     res.status(500).json({ error: 'Error en el servidor' });
@@ -97,8 +94,7 @@ const getPedidosPorUsuario = async (req, res) => {
       'SELECT * FROM pedidos WHERE usuario_id = $1 ORDER BY created_at DESC',
       [userId]
     );
-    const pedidosSanitizados = result.rows.map(sanitizarPedido);
-    res.json(pedidosSanitizados);
+    res.json(result.rows);
   } catch (err) {
     console.error("Error al obtener pedidos del usuario:", err);
     res.status(500).json({ error: 'Error al obtener pedidos del usuario' });
