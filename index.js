@@ -16,7 +16,7 @@ const pedidosRoutes = require('./routes/pedido-routes');
 
 // Configuración inicial de Express
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 
 // JWT
 const secretKey = process.env.SECRET_KEY;
@@ -52,7 +52,7 @@ pool.query('SELECT NOW()', (err, res) => {
 // Inicio del servidor
 if (process.env.NODE_ENV !== 'test') {
     app.listen(PORT, () => {
-        console.log(`Servidor corriendo en http://localhost:${PORT}`);
+        console.log(`Servidor corriendo en el puerto ${PORT}`);
     });
 }
 
