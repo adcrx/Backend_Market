@@ -29,30 +29,30 @@ const getPedidos = async (req, res) => {
 
     if (usuario_id && vendedor_id) {
       query = `
-        SELECT pedidos.*, productos.titulo, productos.imagen, pedidos_items.cantidad, pedidos_items.precio_unitario
+        SELECT pedidos.*, productos.titulo, productos.imagen, pedido_itemsitems.cantidad, pedido_itemsitems.precio_unitario
         FROM pedidos
-        JOIN pedidos_items ON pedidos.id = pedidos_items.pedido_id
-        JOIN productos ON pedidos_items.producto_id = productos.id
+        JOIN pedido_itemsitems ON pedidos.id = pedido_itemsitems.pedido_id
+        JOIN productos ON pedido_itemsitems.producto_id = productos.id
         WHERE pedidos.usuario_id = $1 AND pedidos.vendedor_id = $2
         ORDER BY pedidos.created_at DESC
       `;
       queryParams = [usuario_id, vendedor_id];
     } else if (vendedor_id) {
       query = `
-        SELECT pedidos.*, productos.titulo, productos.imagen, pedidos_items.cantidad, pedidos_items.precio_unitario
+        SELECT pedidos.*, productos.titulo, productos.imagen, pedido_itemsitems.cantidad, pedido_itemsitems.precio_unitario
         FROM pedidos
-        JOIN pedidos_items ON pedidos.id = pedidos_items.pedido_id
-        JOIN productos ON pedidos_items.producto_id = productos.id
+        JOIN pedido_itemsitems ON pedidos.id = pedido_itemsitems.pedido_id
+        JOIN productos ON pedido_itemsitems.producto_id = productos.id
         WHERE pedidos.vendedor_id = $1
         ORDER BY pedidos.created_at DESC
       `;
       queryParams = [vendedor_id];
     } else if (usuario_id) {
       query = `
-        SELECT pedidos.*, productos.titulo, productos.imagen, pedidos_items.cantidad, pedidos_items.precio_unitario
+        SELECT pedidos.*, productos.titulo, productos.imagen, pedido_itemsitems.cantidad, pedido_itemsitems.precio_unitario
         FROM pedidos
-        JOIN pedidos_items ON pedidos.id = pedidos_items.pedido_id
-        JOIN productos ON pedidos_items.producto_id = productos.id
+        JOIN pedido_itemsitems ON pedidos.id = pedido_itemsitems.pedido_id
+        JOIN productos ON pedido_itemsitems.producto_id = productos.id
         WHERE pedidos.usuario_id = $1
         ORDER BY pedidos.created_at DESC
       `;
