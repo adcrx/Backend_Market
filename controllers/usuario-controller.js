@@ -1,7 +1,6 @@
 const usuarioModel = require('../models/usuario-model');
 const sanitizarUsuario = require('../utils/sanitizar-usuario');
 
-// Obtener todos los usuarios
 const getUsuarios = async (req, res) => {
   try {
     const usuarios = await usuarioModel.getUsuarios();
@@ -13,7 +12,6 @@ const getUsuarios = async (req, res) => {
   }
 };
 
-// Registrar un nuevo usuario
 const registerUsuario = async (req, res) => {
   try {
     const { nombre, email, password, direccion, avatar } = req.body;
@@ -43,7 +41,6 @@ const registerUsuario = async (req, res) => {
   }
 };
 
-// Autenticar un usuario
 const loginUsuario = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -62,7 +59,7 @@ const loginUsuario = async (req, res) => {
 
     return res.json({
       token: usuario.token,
-      usuario: sanitizarUsuario(usuario.user)
+      usuario: usuario.user // Se mantiene como está para que el frontend siga funcionando
     });
   } catch (error) {
     console.error('Error en el login:', error);
@@ -73,7 +70,6 @@ const loginUsuario = async (req, res) => {
   }
 };
 
-// Obtener un usuario por ID
 const getUsuarioById = async (req, res) => {
   try {
     const { id } = req.params;
