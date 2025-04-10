@@ -1,175 +1,109 @@
-const pool = require('../config/db-config');
-const format = require('pg-format');
+const productoModel = require('../models/producto-model');
 
-// Función para obtener productos con paginación, ordenamiento y filtro opcional por vendedor_id
-const getProductos = async (limit, page, order_by, vendedor_id) => {
-    const offset = (page - 1) * limit;
-    const order = order_by ? order_by.replace('_', ' ') : 'id ASC';
+const getProductos = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 20;
+    const page = parseInt(req.query.page) || 1;
+    const order_by = req.query.order_by || 'id_ASC';
+    const vendedor_id = req.query.vendedor_id ? parseInt(req.query.vendedor_id) : undefined;
 
-    let queryParams = [];
-    let query = `
-        SELECT p.*, 
-               COALESCE(AVG(c.rating), 0) AS rating
-        FROM productos p
-        LEFT JOIN calificaciones c ON p.id = c.producto_id
-    `;
+    const productos = await productoModel.getProductos(limit, page, order_by, vendedor_id);
+    res.json(productos);
+  } catch (err) {
+    console.error("Error al obtener productos:", err);
+    res.status(500).json({ error: "Error al obtener productos" });
+  }
+};
 
-    if (vendedor_id !== undefined && vendedor_id !== null) {
-        query += ' WHERE p.vendedor_id = %L';
-        queryParams.push(vendedor_id);
+const getProductosFiltrados = async (req, res) => {
+  try {
+    const productos = await productoModel.getProductosFiltrados(req.query);
+    res.json(productos);
+  } catch (err) {
+    console.error("Error al filtrar productos:", err);
+    res.status(500).json({ error: "Error al filtrar productos" });
+  }
+};
+
+const createProducto = async (req, res) => {
+  try {
+    const nuevoProducto = await productoModel.createProducto(req.body);
+    res.status(201).json(nuevoProducto);
+  } catch (err) {
+    console.error("Error al crear producto:", err);
+    res.status(500).json({ error: "Error al crear producto" });
+  }
+};
+
+const getProductoPorId = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'ID inválido' });
+    }
+
+    const producto = await productoModel.getProductoPorId(id);
+    if (!producto) {
+      return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+
+    res.json(producto);
+  } catch (error) {
+    console.error('Error obteniendo el producto:', error);
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+};
+
+const updateProducto = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const productoActualizado = await productoModel.updateProducto(id, req.body);
+    res.json(productoActualizado);
+  } catch (err) {
+    console.error("Error al actualizar producto:", err);
+    res.status(500).json({ error: "Error al actualizar producto" });
+  }
+};
+
+const deleteProducto = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const exito = await productoModel.deleteProducto(id);
+    if (exito) {
+      res.json({ mensaje: "Producto eliminado" });
     } else {
-        query += ' WHERE 1=1';
+      res.status(404).json({ error: "Producto no encontrado" });
     }
-
-    query += ' GROUP BY p.id';
-    query += format(' ORDER BY %s LIMIT %L OFFSET %L', order, limit, offset);
-
-    const finalQuery = format(query, ...queryParams);
-    console.log("Executing SQL:", finalQuery);
-
-    const result = await pool.query(finalQuery);
-    return result.rows;
+  } catch (err) {
+    console.error("Error al eliminar producto:", err);
+    res.status(500).json({ error: "Error al eliminar producto" });
+  }
 };
 
-const getProductosFiltrados = async (filters) => {
-    const { precio_max, precio_min, categoria, vendedor_id } = filters;
-    let query = `
-        SELECT p.*, 
-               COALESCE(AVG(c.rating), 0) AS rating
-        FROM productos p
-        LEFT JOIN calificaciones c ON p.id = c.producto_id
-        WHERE 1=1
-    `;
-    const queryParams = [];
+const calificarProducto = async (req, res) => {
+  try {
+    const productoId = parseInt(req.params.id);
+    const usuarioId = req.usuario.id;
+    const { rating } = req.body;
 
-    if (precio_max) {
-        query += ' AND p.precio <= %L';
-        queryParams.push(precio_max);
-    }
-    if (precio_min) {
-        query += ' AND p.precio >= %L';
-        queryParams.push(precio_min);
-    }
-    if (categoria) {
-        query += ' AND p.categoria_id = %L';
-        queryParams.push(categoria);
-    }
-    if (vendedor_id) {
-        query += ' AND p.vendedor_id = %L';
-        queryParams.push(vendedor_id);
+    if (!productoId || !rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: "Datos inválidos: rating debe ser entre 1 y 5" });
     }
 
-    query += ' GROUP BY p.id';
-
-    const finalQuery = format(query, ...queryParams);
-    console.log("Executing SQL (filtros):", finalQuery);
-
-    const result = await pool.query(finalQuery);
-    return result.rows;
-};
-
-const createProducto = async (productoData) => {
-    const { titulo, descripcion, precio, categoria_id, size, stock, imagen, vendedor_id } = productoData;
-    if (!vendedor_id) throw new Error("vendedor_id es requerido para crear un producto");
-
-    const query = format(
-        'INSERT INTO productos (titulo, descripcion, precio, categoria_id, size, stock, imagen, vendedor_id) VALUES (%L, %L, %L, %L, %L, %L, %L, %L) RETURNING *',
-        titulo, descripcion, precio, categoria_id, size, stock, imagen, vendedor_id
-    );
-    console.log("Executing SQL (create):", query);
-    const result = await pool.query(query);
-    return result.rows[0];
-};
-
-const getProductoPorId = async (id) => {
-  const query = format(`
-      SELECT p.*, 
-             COALESCE(AVG(c.rating), 0) AS rating
-      FROM productos p
-      LEFT JOIN calificaciones c ON p.id = c.producto_id
-      WHERE p.id = %L
-      GROUP BY p.id
-  `, id);
-  const result = await pool.query(query);
-  return result.rows[0];
-};
-
-const updateProducto = async (id, productoData) => {
-    const { titulo, descripcion, precio, categoria_id, size, stock, imagen } = productoData;
-    let updateFields = [];
-    let queryParams = [id];
-    let paramIndex = 2;
-
-    if (titulo !== undefined) {
-        updateFields.push(`titulo = $${paramIndex++}`);
-        queryParams.push(titulo);
-    }
-    if (descripcion !== undefined) {
-        updateFields.push(`descripcion = $${paramIndex++}`);
-        queryParams.push(descripcion);
-    }
-    if (precio !== undefined) {
-        updateFields.push(`precio = $${paramIndex++}`);
-        queryParams.push(precio);
-    }
-    if (categoria_id !== undefined) {
-        updateFields.push(`categoria_id = $${paramIndex++}`);
-        queryParams.push(categoria_id);
-    }
-    if (size !== undefined) {
-        updateFields.push(`size = $${paramIndex++}`);
-        queryParams.push(size);
-    }
-    if (stock !== undefined) {
-        updateFields.push(`stock = $${paramIndex++}`);
-        queryParams.push(stock);
-    }
-    if (imagen !== undefined) {
-        updateFields.push(`imagen = $${paramIndex++}`);
-        queryParams.push(imagen);
-    }
-
-    if (updateFields.length === 0) {
-        const result = await pool.query('SELECT * FROM productos WHERE id = $1', [id]);
-        return result.rows[0];
-    }
-
-    const query = format(`
-        UPDATE productos 
-        SET ${updateFields.join(', ')} 
-        WHERE id = $1 
-        RETURNING *
-    `, ...queryParams);
-
-    console.log("Executing SQL (update):", query);
-    const result = await pool.query(query, queryParams);
-    return result.rows[0];
-};
-
-const deleteProducto = async (id) => {
-    const query = format('DELETE FROM productos WHERE id = %L RETURNING *', id);
-    const result = await pool.query(query);
-    return result.rowCount > 0;
-};
-
-const guardarCalificacion = async (productoId, usuarioId, rating) => {
-    const query = `
-      INSERT INTO calificaciones (producto_id, usuario_id, rating)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (producto_id, usuario_id)
-      DO UPDATE SET rating = EXCLUDED.rating
-      RETURNING *;
-    `;
-    const result = await pool.query(query, [productoId, usuarioId, rating]);
-    return result.rows[0];
+    const resultado = await productoModel.guardarCalificacion(productoId, usuarioId, rating);
+    res.status(201).json(resultado);
+  } catch (err) {
+    console.error("Error al guardar calificación:", err);
+    res.status(500).json({ error: "Error en el servidor" });
+  }
 };
 
 module.exports = {
-    getProductos,
-    getProductosFiltrados,
-    createProducto,
-    getProductoPorId,
-    updateProducto,
-    deleteProducto,
-    guardarCalificacion
+  getProductos,
+  getProductosFiltrados,
+  createProducto,
+  getProductoPorId,
+  updateProducto,
+  deleteProducto,
+  calificarProducto
 };
