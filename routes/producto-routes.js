@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const productoController = require('../controllers/producto-controller');
+const authMiddleware = require('../middlewares/authMiddleware');
 
 // Ruta GET /productos con paginación y ordenamiento
 router.get('/', productoController.getProductos);
@@ -19,5 +20,8 @@ router.put('/:id', productoController.updateProducto);
 
 // Ruta DELETE /productos/:id para eliminar un producto por ID
 router.delete('/:id', productoController.deleteProducto);
+
+//Registrar calificación
+router.post('/:id/rating', authMiddleware, productoController.calificarProducto);
 
 module.exports = router;

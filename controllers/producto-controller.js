@@ -1,137 +1,196 @@
-const productoModel = require('../models/producto-model');
-const { getProductosHATEOAS } = require('../utils/hateoas-util');
+// --- START OF FILE producto-model.js ---
 
-// Obtener productos con paginación, ordenamiento y filtrado opcional por vendedor
-const getProductos = async (req, res) => {
-  try {
-      // Destructure potential filters including vendedor_id
-      const { limit = 100, page = 1, order_by, vendedor_id } = req.query;
+const pool = require('../config/db-config');
+const format = require('pg-format');
 
-      // Validate pagination parameters
-      if (isNaN(limit) || isNaN(page) || page < 1 || limit < 1) {
-          return res.status(400).json({ error: 'Parámetros de paginación inválidos' });
-      }
-      // Validate vendedor_id if provided (optional, depends on requirements)
-      if (vendedor_id && isNaN(parseInt(vendedor_id))) {
-           return res.status(400).json({ error: 'Parámetro vendedor_id inválido' });
-      }
+// Función para obtener productos con paginación, ordenamiento y filtro opcional por vendedor_id
+const getProductos = async (limit, page, order_by, vendedor_id) => {
+    const offset = (page - 1) * limit;
+    const order = order_by ? order_by.replace('_', ' ') : 'id ASC';
 
-      // Pass vendedor_id to the model function
-      const productos = await productoModel.getProductos(
-          parseInt(limit),
-          parseInt(page),
-          order_by,
-          vendedor_id ? parseInt(vendedor_id) : undefined // Pass parsed ID or undefined
-      );
+    let queryParams = [];
+    let query = `
+        SELECT p.*, 
+               COALESCE(AVG(c.rating), 0) AS rating
+        FROM productos p
+        LEFT JOIN calificaciones c ON p.id = c.producto_id
+    `;
 
-      // Apply HATEOAS formatting
-      res.json(getProductosHATEOAS(productos));  // Esta línea formatea y envía los datos
-  } catch (error) {
-      console.error('Error obteniendo los productos:', error);
-      res.status(500).json({ error: 'Error en el servidor' });
-  }
+    if (vendedor_id !== undefined && vendedor_id !== null) {
+        query += ' WHERE p.vendedor_id = %L';
+        queryParams.push(vendedor_id);
+    } else {
+        query += ' WHERE 1=1';
+    }
+
+    query += ' GROUP BY p.id';
+    query += format(' ORDER BY %s LIMIT %L OFFSET %L', order, limit, offset);
+
+    const finalQuery = format(query, ...queryParams);
+    console.log("Executing SQL:", finalQuery);
+
+    const result = await pool.query(finalQuery);
+    return result.rows;
 };
 
-// Obtener productos con filtros (Kept as is, uses a different endpoint /productos/filtros)
-const getProductosFiltrados = async (req, res) => {
-    try {
-        // This uses 'vendedor' query param based on original code. Adjust if needed.
-        const { precio_max, precio_min, categoria, vendedor } = req.query;
-        const productos = await productoModel.getProductosFiltrados({
-            precio_max,
-            precio_min,
-            categoria,
-            // Pass vendedor param as vendedor_id to the model function if needed
-            vendedor_id: vendedor ? parseInt(vendedor) : undefined
-        });
-        res.json(productos); // Note: HATEOAS not applied here in original code
-    } catch (error) {
-        console.error('Error aplicando los filtros:', error);
-        res.status(500).send('Error en el servidor');
+const getProductosFiltrados = async (filters) => {
+    const { precio_max, precio_min, categoria, vendedor_id } = filters;
+    let query = `
+        SELECT p.*, 
+               COALESCE(AVG(c.rating), 0) AS rating
+        FROM productos p
+        LEFT JOIN calificaciones c ON p.id = c.producto_id
+        WHERE 1=1
+    `;
+    const queryParams = [];
+
+    if (precio_max) {
+        query += ' AND p.precio <= %L';
+        queryParams.push(precio_max);
     }
+    if (precio_min) {
+        query += ' AND p.precio >= %L';
+        queryParams.push(precio_min);
+    }
+    if (categoria) {
+        query += ' AND p.categoria_id = %L';
+        queryParams.push(categoria);
+    }
+    if (vendedor_id) {
+        query += ' AND p.vendedor_id = %L';
+        queryParams.push(vendedor_id);
+    }
+
+    query += ' GROUP BY p.id';
+
+    const finalQuery = format(query, ...queryParams);
+    console.log("Executing SQL (filtros):", finalQuery);
+
+    const result = await pool.query(finalQuery);
+    return result.rows;
 };
 
-const createProducto = async (req, res) => {
-  try {
-      console.log("🟨 Datos recibidos en el backend:", req.body);
-      const { titulo, descripcion, precio, categoria_id, vendedor_id, imagen } = req.body;
+const createProducto = async (productoData) => {
+    const { titulo, descripcion, precio, categoria_id, size, stock, imagen, vendedor_id } = productoData;
+    if (!vendedor_id) throw new Error("vendedor_id es requerido para crear un producto");
 
-      // Validación de datos obligatorios
-      if (!titulo || !descripcion || !precio || !categoria_id || !vendedor_id) {
-          return res.status(400).json({ error: "Faltan datos obligatorios" });
-      }
-
-      // Crear el producto en la base de datos
-      const productoData = { titulo, descripcion, precio, categoria_id, vendedor_id, imagen };
-      const nuevoProducto = await productoModel.createProducto(productoData);
-
-      // Devolver el producto creado con código 201 (Creado)
-      res.status(201).json(nuevoProducto);
-  } catch (error) {
-      console.error("🔥 Error creando el producto:", error);
-      res.status(500).json({ error: "Error en el servidor" });
-  }
+    const query = format(
+        'INSERT INTO productos (titulo, descripcion, precio, categoria_id, size, stock, imagen, vendedor_id) VALUES (%L, %L, %L, %L, %L, %L, %L, %L) RETURNING *',
+        titulo, descripcion, precio, categoria_id, size, stock, imagen, vendedor_id
+    );
+    console.log("Executing SQL (create):", query);
+    const result = await pool.query(query);
+    return result.rows[0];
 };
 
+const getProductoPorId = async (id) => {
+    const query = format(`
+        SELECT p.*, 
+               COALESCE(AVG(c.rating), 0) AS rating
+        FROM productos p
+        LEFT JOIN calificaciones c ON p.id = c.producto_id
+        WHERE p.id = %L
+        GROUP BY p.id
+    `, id);
+    const result = await pool.query(query);
+    return result.rows[0];
+};
 
-  const getProductoPorId = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const producto = await productoModel.getProductoPorId(id);
-      if (!producto) {
-        return res.status(404).json({ error: 'Producto no encontrado' });
-      }
-      res.json(producto);
-    } catch (error) {
-      console.error('Error obteniendo el producto:', error);
-      res.status(500).json({ error: 'Error en el servidor' });
+const updateProducto = async (id, productoData) => {
+    const { titulo, descripcion, precio, categoria_id, size, stock, imagen } = productoData;
+    let updateFields = [];
+    let queryParams = [id];
+    let paramIndex = 2;
+
+    if (titulo !== undefined) {
+        updateFields.push(`titulo = $${paramIndex++}`);
+        queryParams.push(titulo);
     }
-  };
-// Actualizar un producto existente
-const updateProducto = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const productoData = req.body;
-      console.log('🟨 Datos recibidos en el backend:', productoData);
-      // Verificar si el producto existe
-      const productoExistente = await productoModel.getProductoPorId(id);
-      if (!productoExistente) {
-        return res.status(404).json({ error: 'Producto no encontrado' });
-      }
-
-      
-      // Actualizar el producto
-      const productoActualizado = await productoModel.updateProducto(id, productoData);
-      res.json(productoActualizado);
-      console.log('Producto actualizado:', productoActualizado);
-    } catch (error) {
-      console.error('Error actualizando el producto:', error);
-      res.status(500).json({ error: 'Error en el servidor' });
+    if (descripcion !== undefined) {
+        updateFields.push(`descripcion = $${paramIndex++}`);
+        queryParams.push(descripcion);
     }
-  };
+    if (precio !== undefined) {
+        updateFields.push(`precio = $${paramIndex++}`);
+        queryParams.push(precio);
+    }
+    if (categoria_id !== undefined) {
+        updateFields.push(`categoria_id = $${paramIndex++}`);
+        queryParams.push(categoria_id);
+    }
+    if (size !== undefined) {
+        updateFields.push(`size = $${paramIndex++}`);
+        queryParams.push(size);
+    }
+    if (stock !== undefined) {
+        updateFields.push(`stock = $${paramIndex++}`);
+        queryParams.push(stock);
+    }
+    if (imagen !== undefined) {
+        updateFields.push(`imagen = $${paramIndex++}`);
+        queryParams.push(imagen);
+    }
 
-// Función para eliminar un producto
-const deleteProducto = async (req, res) => {
-    const { id } = req.params;
+    if (updateFields.length === 0) {
+        const result = await pool.query('SELECT * FROM productos WHERE id = $1', [id]);
+        return result.rows[0];
+    }
+
+    const query = format(`
+        UPDATE productos 
+        SET ${updateFields.join(', ')} 
+        WHERE id = $1 
+        RETURNING *
+    `, ...queryParams);
+
+    console.log("Executing SQL (update):", query);
+    const result = await pool.query(query, queryParams);
+    return result.rows[0];
+};
+
+const deleteProducto = async (id) => {
+    const query = format('DELETE FROM productos WHERE id = %L RETURNING *', id);
+    const result = await pool.query(query);
+    return result.rowCount > 0;
+};
+
+const guardarCalificacion = async (productoId, usuarioId, rating) => {
+    const query = `
+      INSERT INTO calificaciones (producto_id, usuario_id, rating)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (producto_id, usuario_id)
+      DO UPDATE SET rating = EXCLUDED.rating
+      RETURNING *;
+    `;
+    const result = await pool.query(query, [productoId, usuarioId, rating]);
+    return result.rows[0];
+};
+
+const calificarProducto = async (req, res) => {
     try {
-        const result = await productoModel.deleteProducto(id);
-        if (result) {
-            return res.status(204).send(); // No content
-        } else {
-            return res.status(404).json({ error: 'Producto no encontrado' });
+        const productoId = parseInt(req.params.id);
+        const usuarioId = req.usuario.id;
+        const { rating } = req.body;
+
+        if (!productoId || !rating) {
+            return res.status(400).json({ error: "Faltan datos" });
         }
-    } catch (error) {
-        console.error('Error eliminando el producto:', error);
-        res.status(500).json({ error: 'Error en el servidor' });
+
+        const resultado = await guardarCalificacion(productoId, usuarioId, rating);
+        res.status(201).json(resultado);
+    } catch (err) {
+        console.error("Error al guardar calificación:", err);
+        res.status(500).json({ error: "Error en el servidor" });
     }
 };
 
-// Agregar a la lista de exports
 module.exports = {
     getProductos,
     getProductosFiltrados,
     createProducto,
     getProductoPorId,
     updateProducto,
-    deleteProducto
+    deleteProducto,
+    guardarCalificacion,
+    calificarProducto
 };
