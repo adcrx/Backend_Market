@@ -24,18 +24,41 @@ const getPedidos = async (req, res) => {
   try {
     const { usuario_id, vendedor_id } = req.query;
 
-    let query;
+    let query = '';
     let queryParams = [];
 
     if (usuario_id && vendedor_id) {
-      query = `...`;
+      query = `
+        SELECT pedidos.*, productos.titulo, productos.imagen, pedidos_items.cantidad, pedidos_items.precio_unitario
+        FROM pedidos
+        JOIN pedidos_items ON pedidos.id = pedidos_items.pedido_id
+        JOIN productos ON pedidos_items.producto_id = productos.id
+        WHERE pedidos.usuario_id = $1 AND pedidos.vendedor_id = $2
+        ORDER BY pedidos.created_at DESC
+      `;
       queryParams = [usuario_id, vendedor_id];
     } else if (vendedor_id) {
-      query = `...`;
+      query = `
+        SELECT pedidos.*, productos.titulo, productos.imagen, pedidos_items.cantidad, pedidos_items.precio_unitario
+        FROM pedidos
+        JOIN pedidos_items ON pedidos.id = pedidos_items.pedido_id
+        JOIN productos ON pedidos_items.producto_id = productos.id
+        WHERE pedidos.vendedor_id = $1
+        ORDER BY pedidos.created_at DESC
+      `;
       queryParams = [vendedor_id];
     } else if (usuario_id) {
-      query = `...`;
+      query = `
+        SELECT pedidos.*, productos.titulo, productos.imagen, pedidos_items.cantidad, pedidos_items.precio_unitario
+        FROM pedidos
+        JOIN pedidos_items ON pedidos.id = pedidos_items.pedido_id
+        JOIN productos ON pedidos_items.producto_id = productos.id
+        WHERE pedidos.usuario_id = $1
+        ORDER BY pedidos.created_at DESC
+      `;
       queryParams = [usuario_id];
+    } else {
+      return res.json([]); // Si no hay parámetros, no devolvemos nada
     }
 
     const result = await pool.query(query, queryParams);
