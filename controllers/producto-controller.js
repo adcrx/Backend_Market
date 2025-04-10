@@ -1,5 +1,3 @@
-// --- START OF FILE producto-model.js ---
-
 const pool = require('../config/db-config');
 const format = require('pg-format');
 
@@ -84,16 +82,16 @@ const createProducto = async (productoData) => {
 };
 
 const getProductoPorId = async (id) => {
-    const query = format(`
-        SELECT p.*, 
-               COALESCE(AVG(c.rating), 0) AS rating
-        FROM productos p
-        LEFT JOIN calificaciones c ON p.id = c.producto_id
-        WHERE p.id = %L
-        GROUP BY p.id
-    `, id);
-    const result = await pool.query(query);
-    return result.rows[0];
+  const query = format(`
+      SELECT p.*, 
+             COALESCE(AVG(c.rating), 0) AS rating
+      FROM productos p
+      LEFT JOIN calificaciones c ON p.id = c.producto_id
+      WHERE p.id = %L
+      GROUP BY p.id
+  `, id);
+  const result = await pool.query(query);
+  return result.rows[0];
 };
 
 const updateProducto = async (id, productoData) => {
@@ -166,24 +164,6 @@ const guardarCalificacion = async (productoId, usuarioId, rating) => {
     return result.rows[0];
 };
 
-const calificarProducto = async (req, res) => {
-    try {
-        const productoId = parseInt(req.params.id);
-        const usuarioId = req.usuario.id;
-        const { rating } = req.body;
-
-        if (!productoId || !rating) {
-            return res.status(400).json({ error: "Faltan datos" });
-        }
-
-        const resultado = await guardarCalificacion(productoId, usuarioId, rating);
-        res.status(201).json(resultado);
-    } catch (err) {
-        console.error("Error al guardar calificación:", err);
-        res.status(500).json({ error: "Error en el servidor" });
-    }
-};
-
 module.exports = {
     getProductos,
     getProductosFiltrados,
@@ -191,6 +171,5 @@ module.exports = {
     getProductoPorId,
     updateProducto,
     deleteProducto,
-    guardarCalificacion,
-    calificarProducto
+    guardarCalificacion
 };
