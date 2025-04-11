@@ -29,20 +29,22 @@ const getPedidos = async (req, res) => {
 
     if (usuario_id && vendedor_id) {
       query = `
-        SELECT pedidos.*, productos.titulo, productos.imagen, pedido_items.cantidad, pedido_items.precio_unitario
+        SELECT pedidos.*, usuarios.nombre AS usuario_nombre, productos.titulo, productos.imagen, pedido_items.cantidad, pedido_items.precio_unitario
         FROM pedidos
         JOIN pedido_items ON pedidos.id = pedido_items.pedido_id
         JOIN productos ON pedido_items.producto_id = productos.id
+        JOIN usuarios ON pedidos.usuario_id = usuarios.id
         WHERE pedidos.usuario_id = $1 AND pedidos.vendedor_id = $2
         ORDER BY pedidos.created_at DESC
       `;
       queryParams = [usuario_id, vendedor_id];
     } else if (vendedor_id) {
       query = `
-        SELECT pedidos.*, productos.titulo, productos.imagen, pedido_items.cantidad, pedido_items.precio_unitario
+        SELECT pedidos.*, usuarios.nombre AS usuario_nombre, productos.titulo, productos.imagen, pedido_items.cantidad, pedido_items.precio_unitario
         FROM pedidos
         JOIN pedido_items ON pedidos.id = pedido_items.pedido_id
         JOIN productos ON pedido_items.producto_id = productos.id
+        JOIN usuarios ON pedidos.usuario_id = usuarios.id
         WHERE pedidos.vendedor_id = $1
         ORDER BY pedidos.created_at DESC
       `;
@@ -58,7 +60,7 @@ const getPedidos = async (req, res) => {
       `;
       queryParams = [usuario_id];
     } else {
-      return res.json([]); // Si no hay parámetros, no devolvemos nada
+      return res.json([]);
     }
 
     const result = await pool.query(query, queryParams);
@@ -68,6 +70,7 @@ const getPedidos = async (req, res) => {
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
+
 
 const updateEstadoPedido = async (req, res) => {
   const { id } = req.params;
